@@ -12,6 +12,7 @@ import os
 # Получаем токены из переменных окружения Render
 TG_TOKEN = os.environ.get('TG_TOKEN')
 HF_TOKEN = os.environ.get('HF_TOKEN')
+GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
 # Проверяем, что токены есть
 if not TG_TOKEN or not HF_TOKEN:
@@ -35,48 +36,60 @@ data = load_data()
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask(__name__)
 
-# === ФУНКЦИЯ ИИ ===
+## === ФУНКЦИЯ ИИ (через Groq — быстро и стаб良но) ===
 def ask_ai(text):
-    # Пробуем 3 раза с разными моделями
-    models = [
-        "HuggingFaceH4/zephyr-7b-beta",
-        "mistralai/Mistral-7B-Instruct-v0.2",
-        "Qwen/Qwen2.5-7B-Instruct"
-    ]
+    # Локальные ответы на частые фразы (мгновенно, без ИИ)
+    local_responses = {
+        'привет': 'Привет! 👋 Как настроение? Рассказывай, что нового.',
+        'как дела': 'У меня всё стабильно — слежу за твоими целями. А у тебя как? 💪',
+        'я устал': 'Понимаю, ты много работаешь. Может, стоит отдохнуть часок? Ты не робот (в отличие от меня 😄). 🫂',
+        'скучно': 'Можешь записать что-нибудь в дневник или посмотреть баланс — увидишь, сколько уже сделал! 📊',
+        'спасибо': 'Всегда пожалуйста! Ты сам молодец, что идёшь к цели. 🙌',
+        'помоги': 'Я рядом. Расскажи, что случилось — разберёмся вместе. 🫂',
+    }
     
-    for model in models:
-        for attempt in range(2):  # 2 попытки на каждую модель
-            try:
-                API_URL = f"https://api-inference.huggingface.co/models/{model}"
-                headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-                prompt = f"""Ты — добрый, спокойный помощник по имени Хеопс. 
-Ты помогаешь студенту, который работает и гасит долги (свой 90к и мамин 250к). 
-Ты общаешься просто, по-дружески, без пафоса и клоунады. 
-Поддержи его, будь на его стороне. Отвечай кратко (2-3 предложения).
-
-Сообщение пользователя: {text}
-Твой ответ:"""
-                
-                response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=90)
-                
-                if response.status_code == 200:
-                    result = response.json()
-                    if isinstance(result, list) and len(result) > 0:
-                        generated = result[0].get('generated_text', '')
-                        if 'Твой ответ:' in generated:
-                            return generated.split('Твой ответ:')[-1].strip()
-                        return generated.strip()
-                
-                # Если ошибка, ждём и пробуем снова
-                import time
-                time.sleep(3)
-                
-            except Exception as e:
-                import time
-                time.sleep(3)
-                continue
+    text_lower = text.lower().strip()
+    for key, response in local_responses.items():
+        if key in text_lower:
+            return response
     
-    return f"ИИ сейчас загружен 😴 Но я всё запомнил! Напиши 'баланс' чтобы увидеть статистику, или попробуй ещё раз через минуту."
+    # Если не нашли локальный ответ — идём в Groq
+    try:
+        headers = {
+            "Authorization": f"Bearer {GROQ_API_KEY}",
+            "Content-Type": "application/json"
+        }
+        payload = {
+            "model": "llama-3.3-70b-versatile",
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "Ты — добрый, спокойный помощник по имени Хеопс. Ты помогаешь студенту Жене, который работает и гасит долги (свой 90к и мамин 250к). У него есть девушка Ксюша (ДР 1 февраля). Он играет в CS. Общайся просто, по-дружески, без пафоса и клоунады. Поддержи его, будь на его стороне. Отвечай кратко (2-3 предложения)."
+                },
+                {
+                    "role": "user",
+                    "content": text
+                }
+            ],
+            "temperature": 0.7,
+            "max_tokens": 200
+        }
+        
+        response = requests.post(
+            "https://api.groq.com/openai/v1/chat/completions",
+            headers=headers,
+            json=payload,
+            timeout=30
+        )
+        
+        if response.status_code == 200:
+            result = response.json()
+            return result['choices'][0]['message']['content'].strip()
+        
+        return "Хм, что-то пошло не так с ИИ. Попробуй ещё раз через минуту. 🫂"
+        
+    except Exception as e:
+        return "ИИ сейчас недоступен, но я всё запомнил! Напиши 'баланс' чтобы увидеть статистику. 📊"
 
 # === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
