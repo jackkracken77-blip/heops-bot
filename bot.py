@@ -713,5 +713,6 @@ def index():
 if __name__ == '__main__':
     bot.remove_webhook()
     bot.set_webhook(url=WEBHOOK_URL)
+    print(f"🚀 Webhook установлен: {WEBHOOK_URL}")
     threading.Thread(target=daily_scheduler, daemon=True).start()
     app.run(host='0.0.0.0', port=int(os.environ.get('PORT', 8000)))
