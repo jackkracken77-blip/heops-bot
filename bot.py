@@ -37,27 +37,46 @@ app = Flask(__name__)
 
 # === ФУНКЦИЯ ИИ ===
 def ask_ai(text):
-    try:
-        API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
-        headers = {"Authorization": f"Bearer {HF_TOKEN}"}
-        prompt = f"""Ты — добрый, спокойный помощник по имени Хеопс. 
+    # Пробуем 3 раза с разными моделями
+    models = [
+        "HuggingFaceH4/zephyr-7b-beta",
+        "mistralai/Mistral-7B-Instruct-v0.2",
+        "Qwen/Qwen2.5-7B-Instruct"
+    ]
+    
+    for model in models:
+        for attempt in range(2):  # 2 попытки на каждую модель
+            try:
+                API_URL = f"https://api-inference.huggingface.co/models/{model}"
+                headers = {"Authorization": f"Bearer {HF_TOKEN}"}
+                prompt = f"""Ты — добрый, спокойный помощник по имени Хеопс. 
 Ты помогаешь студенту, который работает и гасит долги (свой 90к и мамин 250к). 
 Ты общаешься просто, по-дружески, без пафоса и клоунады. 
 Поддержи его, будь на его стороне. Отвечай кратко (2-3 предложения).
 
 Сообщение пользователя: {text}
 Твой ответ:"""
-        
-        response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
-        result = response.json()
-        if isinstance(result, list) and len(result) > 0:
-            generated = result[0].get('generated_text', '')
-            if 'Твой ответ:' in generated:
-                return generated.split('Твой ответ:')[-1].strip()
-            return generated.strip()
-        return "Я тут, я с тобой. Расскажи подробнее? 🫂"
-    except Exception as e:
-        return f"ИИ сейчас отдыхает 😴 Но я запомнил: {text}. Напиши 'баланс' чтобы увидеть статистику!"
+                
+                response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=90)
+                
+                if response.status_code == 200:
+                    result = response.json()
+                    if isinstance(result, list) and len(result) > 0:
+                        generated = result[0].get('generated_text', '')
+                        if 'Твой ответ:' in generated:
+                            return generated.split('Твой ответ:')[-1].strip()
+                        return generated.strip()
+                
+                # Если ошибка, ждём и пробуем снова
+                import time
+                time.sleep(3)
+                
+            except Exception as e:
+                import time
+                time.sleep(3)
+                continue
+    
+    return f"ИИ сейчас загружен 😴 Но я всё запомнил! Напиши 'баланс' чтобы увидеть статистику, или попробуй ещё раз через минуту."
 
 # === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
