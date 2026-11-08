@@ -7,8 +7,6 @@ from datetime import datetime
 from flask import Flask, request
 
 # === НАСТРОЙКИ ===
-import os
-
 TG_TOKEN = os.environ.get('TG_TOKEN')
 HF_TOKEN = os.environ.get('HF_TOKEN')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
@@ -69,15 +67,14 @@ def get_category_from_ai(expense_text):
         if response.status_code == 200:
             result = response.json()
             category = result['choices'][0]['message']['content'].strip()
-            # Проверяем, что категория из списка
             valid_categories = ['Еда', 'Напитки', 'Транспорт', 'Развлечения', 'Здоровье', 'Одежда', 'Бытовое', 'Связь', 'Другое']
             if category in valid_categories:
                 return category
         
-        return None  # ИИ не ответил
+        return None
         
     except Exception as e:
-        return None  # Ошибка
+        return None
 
 # === ЛОКАЛЬНЫЕ ПРАВИЛА (FALLBACK) ===
 def get_category_local(expense_text):
@@ -119,8 +116,12 @@ def handle_message(message):
     is_command = text.startswith('/')
     command = text[1:] if is_command else text
     
+    # Если просто слэш без команды — показать помощь
+    if is_command and not command:
+        command = 'помощь'
+    
     # 1. Помощь
-    if command in ['помощь', 'help', 'команды']:
+    if command in ['помощь', 'help', 'команды', '']:
         help_text = """📋 **Хеопс — твой финансовый помощник:**
 
 💰 **Финансы:**
@@ -128,14 +129,14 @@ def handle_message(message):
 • `зп самокат 3000` — записать доход
 • `погасил свой 1000` — погасить свой долг
 • `погасил мамин 2000` — погасить мамин долг
-• `/баланс` — общая статистика
-• `/категории` — анализ расходов по категориям с %
+• `/баланс` или `/balance` — общая статистика
+• `/категории` или `/categories` — анализ расходов с %
 
 📌 **Ксюша:**
 • `/заметка Ксюша любит рамен` — добавить заметку
-• `/ксюша` — показать все заметки о Ксюше
+• `/ксюша` или `/ksyusha` — показать все заметки о Ксюше
 
-💡 **Совет:** Используй слэш-команды (/) для быстрого доступа!"""
+💡 **Совет:** Напиши `/` чтобы увидеть меню команд!"""
         bot.reply_to(message, help_text)
         return
 
@@ -145,13 +146,12 @@ def handle_message(message):
         amount = int(expense_match.group(1))
         category_text = expense_match.group(2)
         
-        # ИИ определяет категорию
         category = get_category(category_text)
         
         data['balance'] -= amount
         data['expense_history'].append(f"{datetime.now().strftime('%d.%m')}: {amount}р - {category_text} [{category}]")
         save_data(data)
-        bot.reply_to(message, f"📉 Записал: {amount}р на {category_text}\n📂 Категория: {category} (определено ИИ)\n💰 Остаток: {data['balance']}р")
+        bot.reply_to(message, f"📉 Записал: {amount}р на {category_text}\n📂 Категория: {category}\n💰 Остаток: {data['balance']}р")
         return
 
     # 3. Доход
@@ -181,7 +181,7 @@ def handle_message(message):
             return
 
     # 5. Анализ по категориям с процентами
-    if command in ['категории', 'анализ', 'статистика расходов']:
+    if command in ['категории', 'анализ', 'статистика расходов', 'categories']:
         if not data['expense_history']:
             bot.reply_to(message, "Пока нет расходов для анализа. Запиши первую трату! 📝")
             return
@@ -216,8 +216,8 @@ def handle_message(message):
         return
 
     # 6. Заметки о Ксюше
-    if command.startswith('заметк'):
-        note = re.sub(r'^заметк[ау]?\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
+    if command.startswith('заметк') or command.startswith('note'):
+        note = re.sub(r'^(заметк[ау]?|note)\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if not note or note == original_text:
             note = original_text
         data['notes'] += f"{datetime.now().strftime('%d.%m')}: {note}\n"
@@ -226,7 +226,7 @@ def handle_message(message):
         return
 
     # 7. Показать все заметки о Ксюше
-    if command == 'ксюша':
+    if command in ['ксюша', 'ksyusha']:
         notes = data.get('notes', '')
         if not notes or notes.strip() == '':
             bot.reply_to(message, "📝 Пока нет заметок о Ксюше.\n\nДобавь первую: `/заметка Ксюша любит рамен`")
@@ -240,7 +240,7 @@ def handle_message(message):
         return
 
     # 8. Баланс и статистика
-    if command in ['баланс', 'статистика', 'итог', 'день', 'долги']:
+    if command in ['баланс', 'статистика', 'итог', 'день', 'долги', 'balance']:
         stats = f"📊 **Твой баланс:** {data['balance']}р\n\n"
         stats += f"📉 **Долги:**\n"
         stats += f"  • Твой: {data['my_debt']}р\n"
@@ -254,7 +254,7 @@ def handle_message(message):
         return
 
     # 9. Всё остальное
-    bot.reply_to(message, "Я помогаю только с учётом финансов и напоминаниями о Ксюше. 😊\n\nНапиши `/помощь` чтобы увидеть все команды!")
+    bot.reply_to(message, "Я помогаю только с учётом финансов и напоминаниями о Ксюше. 😊\n\nНапиши `/` чтобы увидеть меню команд!")
 
 # === WEBHOOK ===
 @app.route('/' + TG_TOKEN, methods=['POST'])
