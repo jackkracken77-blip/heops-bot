@@ -31,8 +31,6 @@ def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             data = json.load(f)
-        
-        # Миграция и проверка структуры
         if str(KSYUSHA_ID) in data.get('users', {}):
             if 'my_debt' not in data['users'][str(KSYUSHA_ID)]:
                 data['users'][str(KSYUSHA_ID)]['my_debt'] = 150000
@@ -40,7 +38,6 @@ def load_data():
             data['write_queue'] = {str(ZHENYA_ID): None, str(KSYUSHA_ID): None}
         save_data(data)
         return data
-        
     return {
         "users": {
             str(ZHENYA_ID): {
@@ -67,7 +64,6 @@ data = load_data()
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask(__name__)
 
-# === ИИ КАТЕГОРИЗАЦИЯ ===
 def get_category_from_ai(expense_text):
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
@@ -124,7 +120,6 @@ def get_partner_command(user_id):
         return "/она"
     return "/он"
 
-# === СТАТИСТИКА ЗА 7 ДНЕЙ ===
 def get_week_stats(user_data, user_name):
     today = datetime.now()
     week_ago = today - timedelta(days=7)
@@ -135,7 +130,6 @@ def get_week_stats(user_data, user_name):
     if user_data.get('mom_debt'):
         stats += f"📉 **Мамин долг:** {user_data['mom_debt']}р\n"
     stats += "\n"
-    
     daily_expenses = {}
     total_week_expenses = 0
     for expense in user_data.get('expense_history', []):
@@ -158,7 +152,6 @@ def get_week_stats(user_data, user_name):
                 stats += f"  • {exp}\n"
     else:
         stats += "📉 Расходов за неделю нет.\n"
-        
     daily_incomes = {}
     total_week_income = 0
     for income in user_data.get('income_history', []):
@@ -183,7 +176,6 @@ def get_week_stats(user_data, user_name):
         stats += "\n💰 Доходов за неделю нет.\n"
     return stats
 
-# === СТАТИСТИКА ЗА МЕСЯЦ ===
 def get_month_stats(user_data, user_name):
     today = datetime.now()
     current_month = today.month
@@ -196,7 +188,6 @@ def get_month_stats(user_data, user_name):
     if user_data.get('mom_debt'):
         stats += f"📉 **Мамин долг:** {user_data['mom_debt']}р\n"
     stats += "\n"
-    
     daily_expenses = {}
     total_month_expenses = 0
     for expense in user_data.get('expense_history', []):
@@ -211,7 +202,6 @@ def get_month_stats(user_data, user_name):
                 total_month_expenses += amount
         except:
             pass
-            
     category_totals = {}
     for expense in user_data.get('expense_history', []):
         date_str = expense.split(':')[0]
@@ -225,7 +215,6 @@ def get_month_stats(user_data, user_name):
                     category_totals[cat] = category_totals.get(cat, 0) + amount
         except:
             pass
-            
     if daily_expenses:
         stats += f"📉 **Расходы за месяц:** {total_month_expenses}р\n"
         for date in sorted(daily_expenses.keys(), reverse=True):
@@ -234,7 +223,6 @@ def get_month_stats(user_data, user_name):
                 stats += f"  • {exp}\n"
     else:
         stats += "📉 Расходов за месяц нет.\n"
-        
     daily_incomes = {}
     total_month_income = 0
     for income in user_data.get('income_history', []):
@@ -257,7 +245,6 @@ def get_month_stats(user_data, user_name):
                 stats += f"  • {inc}\n"
     else:
         stats += "\n💰 Доходов за месяц нет.\n"
-        
     if category_totals:
         stats += f"\n📊 **По категориям:**\n"
         sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
@@ -268,7 +255,6 @@ def get_month_stats(user_data, user_name):
             stats += f"**{cat}:** {amount}р ({percentage:.1f}%)\n{bar}\n\n"
     return stats
 
-# === СТАТИСТИКА ЗА ГОД ===
 def get_year_stats(user_data, user_name):
     today = datetime.now()
     current_year = today.year
@@ -284,7 +270,6 @@ def get_year_stats(user_data, user_name):
     monthly_incomes = {}
     total_year_expenses = 0
     total_year_income = 0
-    
     for expense in user_data.get('expense_history', []):
         date_str = expense.split(':')[0]
         try:
@@ -311,7 +296,6 @@ def get_year_stats(user_data, user_name):
                 total_year_income += amount
         except:
             pass
-            
     stats += f"📉 **Расходы за год:** {total_year_expenses}р\n"
     stats += f"💰 **Доходы за год:** {total_year_income}р\n"
     stats += f"💵 **Разница:** {total_year_income - total_year_expenses}р\n\n"
@@ -327,7 +311,6 @@ def get_year_stats(user_data, user_name):
                 stats += f"  💰 Доходы: {inc}р\n"
     return stats
 
-# === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     user_id = message.from_user.id
@@ -335,20 +318,15 @@ def handle_message(message):
     if not user_name:
         bot.reply_to(message, "Привет! Этот бот только для Жени и Ксюши. 😊")
         return
-        
     partner_id = get_partner_id(user_id)
     partner_name = USERS.get(partner_id, "Партнёр")
     partner_command = get_partner_command(user_id)
-    
     text = message.text.lower().strip() if message.text else ''
     original_text = message.text.strip() if message.text else ''
-    
     is_command = text.startswith('/')
     command = text[1:] if is_command else text
     if is_command and not command:
         command = 'help'
-
-    # === ПРОВЕРКА: ЖДЁМ СООБЩЕНИЕ ДЛЯ ПАРТНЁРА ===
     if data['write_queue'].get(str(user_id)) == 'waiting':
         data['write_queue'][str(user_id)] = {
             "text": original_text,
@@ -358,8 +336,6 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"✅ Записал! Сообщение отправится {partner_name} завтра утром в 9:00.\n\n💌 Твой текст: \"{original_text}\"")
         return
-
-    # 1. Помощь
     if command in ['помощь', 'help', 'команды', '']:
         help_text = f"""📋 **Хеопс — для {user_name}:**
 
@@ -386,15 +362,11 @@ def handle_message(message):
 
 ⚙️ **Для разработчика:**
 • `/reset` — полный сброс истории"""
-        
         markup = types.InlineKeyboardMarkup()
         btn_write = types.InlineKeyboardButton(f"✉️ Написать {partner_name}", callback_data='write_mode')
         markup.add(btn_write)
-        
         bot.reply_to(message, help_text, reply_markup=markup)
         return
-
-    # 2. Личные расходы
     expense_match_1 = re.match(r'^(\d+)\s+(.+)$', text)
     expense_match_2 = re.match(r'^(.+?)\s+(\d+)$', text)
     if (expense_match_1 or expense_match_2) and 'зп' not in text and 'погас' not in text:
@@ -411,8 +383,6 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"📉 Записал: {amount}р на {category_text}\n📂 Категория: {category}\n💰 Остаток: {user_data['balance']}р")
         return
-
-    # 3. Доходы
     income_match = re.search(r'(зп|яндекс|самокат|подработка)\s*.*?(\d+)', text)
     if income_match:
         source = income_match.group(1).capitalize()
@@ -423,8 +393,6 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"💰 Получил {amount}р от {source}. Баланс: {user_data['balance']}р. 🎯")
         return
-
-    # 4. Погашение долга
     if 'погас' in text:
         debt_match = re.search(r'(\d+)', text)
         if debt_match:
@@ -439,8 +407,6 @@ def handle_message(message):
                 save_data(data)
                 bot.reply_to(message, f"🔥 Твой долг теперь {user_data['my_debt']}р. 🚀")
             return
-
-    # 5. Статистика прямо сейчас
     if command in ['сейчас', 'now', 'прямо сейчас']:
         user_data = data['users'][str(user_id)]
         stats = f"⚡ **{user_name} — прямо сейчас:**\n\n"
@@ -453,7 +419,6 @@ def handle_message(message):
             total_debt = user_data.get('my_debt', 0) + user_data.get('mom_debt', 0)
             stats += f"📊 **Всего долгов:** {total_debt}р\n"
         stats += "\n"
-        
         all_transactions = []
         for expense in user_data.get('expense_history', []):
             date_str = expense.split(':')[0]
@@ -461,9 +426,7 @@ def handle_message(message):
         for income in user_data.get('income_history', []):
             date_str = income.split(':')[0]
             all_transactions.append({'date': date_str, 'text': income.split(': ', 1)[1], 'type': 'income'})
-        
         all_transactions.sort(key=lambda x: x['date'], reverse=True)
-        
         if all_transactions:
             stats += "📋 **Последние 10 операций:**\n"
             for i, trans in enumerate(all_transactions[:10]):
@@ -473,32 +436,22 @@ def handle_message(message):
             stats += "📋 Операций пока нет.\n"
         bot.reply_to(message, stats)
         return
-
-    # 6. Баланс / 7 дней
     if command in ['я', 'мне', 'moi', 'ya', 'balance', 'баланс', 'статистика', 'неделя', 'week']:
         user_data = data['users'][str(user_id)]
         bot.reply_to(message, get_week_stats(user_data, user_name))
         return
-
-    # 7. Месяц
     if command in ['месяц', 'month']:
         user_data = data['users'][str(user_id)]
         bot.reply_to(message, get_month_stats(user_data, user_name))
         return
-
-    # 8. Год
     if command in ['год', 'year']:
         user_data = data['users'][str(user_id)]
         bot.reply_to(message, get_year_stats(user_data, user_name))
         return
-
-    # 9. Партнёр
     if command in ['она', 'он', 'partner', 'ona']:
         partner_data = data['users'][str(partner_id)]
         bot.reply_to(message, get_week_stats(partner_data, partner_name))
         return
-
-    # 10. Категории
     if command in ['категории', 'анализ', 'categories']:
         user_data = data['users'][str(user_id)]
         if not user_data.get('expense_history'):
@@ -523,8 +476,6 @@ def handle_message(message):
             report += f"**{category}:** {amount}р ({percentage:.1f}%)\n{bar}\n\n"
         bot.reply_to(message, report)
         return
-
-    # 11. Эмоции
     if command in ['день', 'day']:
         partner_emotion = data['emotions'].get(str(partner_id), {})
         if not partner_emotion.get('text'):
@@ -532,15 +483,11 @@ def handle_message(message):
             return
         bot.reply_to(message, f"💙 **{partner_name} ({partner_emotion.get('date')}):**\n\n{partner_emotion['text']}")
         return
-
-    # 12. Write — режим ожидания сообщения
     if command in ['write', 'написать']:
         data['write_queue'][str(user_id)] = 'waiting'
         save_data(data)
         bot.reply_to(message, f"✍️ Напиши сообщение для {partner_name}. Оно отправится завтра утром в 9:00.")
         return
-
-    # 13. Статус
     if command in ['статус', 'status']:
         partner_emotion = data['emotions'].get(str(partner_id), {})
         today = datetime.now().strftime('%d.%m')
@@ -549,17 +496,13 @@ def handle_message(message):
         else:
             bot.reply_to(message, f"⏳ {partner_name} ещё не ответил сегодня.")
         return
-
-    # 14. Заметки (автоматически партнёру)
     if command.startswith('заметк') or command.startswith('note'):
         note_text = re.sub(r'^(заметк[ау]?|note)\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if not note_text or note_text == original_text:
             bot.reply_to(message, f"Напиши: `/note [текст о {partner_name}]`")
             return
-        
         data['users'][str(partner_id)]['notes'] += f"{datetime.now().strftime('%d.%m')}: {note_text}\n"
         save_data(data)
-        
         confirm_text = f"""✅ **Заметка сохранена!**
 
 📝 **Текст:** {note_text}
@@ -569,8 +512,6 @@ def handle_message(message):
 {partner_name} увидит это, когда напишет /ksyusha или /zhenya 💙"""
         bot.reply_to(message, confirm_text)
         return
-
-    # 15. Показать заметки
     if command in ['ксюша', 'ksyusha']:
         notes = data['users'][str(KSYUSHA_ID)].get('notes', '')
         if not notes or notes.strip() == '':
@@ -578,7 +519,6 @@ def handle_message(message):
             return
         bot.reply_to(message, "💙 **Всё о Ксюше:**\n\n" + notes + "\n⚠️ ДР Ксюши — 1 февраля!")
         return
-
     if command in ['женя', 'zhenya']:
         notes = data['users'][str(ZHENYA_ID)].get('notes', '')
         if not notes or notes.strip() == '':
@@ -586,18 +526,13 @@ def handle_message(message):
             return
         bot.reply_to(message, "💪 **Всё о Жене:**\n\n" + notes)
         return
-
-    # 16. Старт
     if command in ['start', 'старт']:
         bot.reply_to(message, f"Привет, {user_name}! 👋\n\nНапиши `/help` чтобы увидеть все команды!")
         return
-
-    # 17. СЕКРЕТНАЯ КОМАНДА РАЗРАБОТЧИКА: Полный сброс
     if command == 'reset':
         if user_id != ZHENYA_ID:
             bot.reply_to(message, "🚫 Эта команда доступна только разработчику.")
             return
-        
         data = {
             "users": {
                 str(ZHENYA_ID): {
@@ -616,7 +551,6 @@ def handle_message(message):
             "write_queue": {str(ZHENYA_ID): None, str(KSYUSHA_ID): None}
         }
         save_data(data)
-        
         bot.reply_to(message, """🗑 **ИСТОРИЯ ПОЛНОСТЬЮ ОЧИЩЕНА!**
 
 ✅ Балансы обнулены (0р)
@@ -625,8 +559,6 @@ def handle_message(message):
 
 Можно начинать с чистого листа! 🚀""")
         return
-
-    # 18. Ответ на ежедневный вопрос
     if data['emotions'].get(str(user_id), {}).get('waiting', False):
         data['emotions'][str(user_id)] = {
             "date": datetime.now().strftime('%d.%m'),
@@ -637,11 +569,8 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"✅ Записал! Утром {partner_name} увидит твоё сообщение. 💙")
         return
-
-    # 19. Остальное
     bot.reply_to(message, f"Напиши `/` чтобы увидеть меню!")
 
-# === ОБРАБОТКА INLINE-КНОПОК ===
 @bot.callback_query_handler(func=lambda call: True)
 def callback_handler(call):
     user_id = call.from_user.id
@@ -650,19 +579,16 @@ def callback_handler(call):
         return
     partner_id = get_partner_id(user_id)
     partner_name = USERS.get(partner_id, "Партнёр")
-    
     if call.data == 'write_mode':
         data['write_queue'][str(user_id)] = 'waiting'
         save_data(data)
         bot.answer_callback_query(call.id, f"Напиши сообщение для {partner_name}")
         bot.send_message(user_id, f"✍️ Напиши сообщение для {partner_name}. Оно отправится завтра утром в 9:00.")
 
-# === ЕЖЕДНЕВНАЯ РАССЫЛКА ===
 def daily_scheduler():
     while True:
         now = datetime.now()
         current_time = now.strftime('%H:%M')
-        
         if current_time == '21:00':
             for user_id, user_name in USERS.items():
                 try:
@@ -672,12 +598,10 @@ def daily_scheduler():
                 except:
                     pass
             time.sleep(60)
-            
         elif current_time == '09:00':
             for user_id, user_name in USERS.items():
                 partner_id = get_partner_id(user_id)
                 partner_name = USERS.get(partner_id)
-                
                 emotion = data['emotions'].get(str(user_id), {})
                 if emotion.get('text') and not emotion.get('sent'):
                     try:
@@ -686,7 +610,6 @@ def daily_scheduler():
                         save_data(data)
                     except:
                         pass
-                
                 write_msg = data['write_queue'].get(str(user_id))
                 if write_msg and isinstance(write_msg, dict) and not write_msg.get('sent'):
                     try:
@@ -696,10 +619,8 @@ def daily_scheduler():
                     except:
                         pass
             time.sleep(60)
-        
         time.sleep(30)
 
-# === WEBHOOK ===
 @app.route('/' + TG_TOKEN, methods=['POST'])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode('utf-8'))
