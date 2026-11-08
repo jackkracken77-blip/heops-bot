@@ -375,6 +375,7 @@ def get_categories_stats(user_data, user_name):
 # === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
+    global data
     try:
         user_id = message.from_user.id
         user_name = USERS.get(user_id)
@@ -528,8 +529,7 @@ def handle_message(message):
         if command in ['start', 'старт']:
             send(message.chat.id, f"Привет, {user_name}! Напиши /help чтобы увидеть все команды!")
             return
-              if command == 'reset':
-            global data
+        if command == 'reset':
             if user_id != ZHENYA_ID:
                 send(message.chat.id, "🚫 Эта команда доступна только разработчику.")
                 return
