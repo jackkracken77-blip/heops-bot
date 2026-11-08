@@ -38,7 +38,7 @@ app = Flask(__name__)
 # === ФУНКЦИЯ ИИ ===
 def ask_ai(text):
     try:
-        API_URL = "https://api-inference.huggingface.co/models/mistralai/Mistral-7B-Instruct-v0.3"
+        API_URL = "https://api-inference.huggingface.co/models/Qwen/Qwen2.5-7B-Instruct"
         headers = {"Authorization": f"Bearer {HF_TOKEN}"}
         prompt = f"""Ты — добрый, спокойный помощник по имени Хеопс. 
 Ты помогаешь студенту, который работает и гасит долги (свой 90к и мамин 250к). 
@@ -48,7 +48,7 @@ def ask_ai(text):
 Сообщение пользователя: {text}
 Твой ответ:"""
         
-        response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=30)
+        response = requests.post(API_URL, headers=headers, json={"inputs": prompt}, timeout=60)
         result = response.json()
         if isinstance(result, list) and len(result) > 0:
             generated = result[0].get('generated_text', '')
