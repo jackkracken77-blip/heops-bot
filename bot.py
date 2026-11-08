@@ -528,7 +528,8 @@ def handle_message(message):
         if command in ['start', 'старт']:
             send(message.chat.id, f"Привет, {user_name}! Напиши /help чтобы увидеть все команды!")
             return
-        if command == 'reset':
+              if command == 'reset':
+            global data
             if user_id != ZHENYA_ID:
                 send(message.chat.id, "🚫 Эта команда доступна только разработчику.")
                 return
