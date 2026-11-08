@@ -140,11 +140,21 @@ def handle_message(message):
         bot.reply_to(message, help_text)
         return
 
-    # 2. Расход с ИИ-категоризацией
-    expense_match = re.match(r'^(\d+)\s+(.+)$', text)
-    if expense_match and 'зп' not in text and 'погас' not in text:
-        amount = int(expense_match.group(1))
-        category_text = expense_match.group(2)
+       # 2. Расход с ИИ-категоризацией (работает в любом порядке: "300 шаурма" или "шаурма 300")
+    
+    # Паттерн 1: "300 шаурма" (число в начале)
+    expense_match_1 = re.match(r'^(\d+)\s+(.+)$', text)
+    
+    # Паттерн 2: "шаурма 300" (число в конце)
+    expense_match_2 = re.match(r'^(.+?)\s+(\d+)$', text)
+    
+    if (expense_match_1 or expense_match_2) and 'зп' not in text and 'погас' not in text:
+        if expense_match_1:
+            amount = int(expense_match_1.group(1))
+            category_text = expense_match_1.group(2)
+        else:
+            amount = int(expense_match_2.group(2))
+            category_text = expense_match_2.group(1)
         
         category = get_category(category_text)
         
