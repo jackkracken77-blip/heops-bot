@@ -60,13 +60,14 @@ data = load_data()
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask(__name__)
 
+# === ИИ КАТЕГОРИЗАЦИЯ ===
 def get_category_from_ai(expense_text):
     try:
         headers = {"Authorization": f"Bearer {GROQ_API_KEY}", "Content-Type": "application/json"}
         payload = {
             "model": "llama3-70b-8192",
             "messages": [
-                {"role": "system", "content": "Определи категорию расхода. Ответь ТОЛЬКО одной: Еда, Напитки, Транспорт, Развлечения, Здоровье, Одежда, Бытовое, Связь, Другое."},
+                {"role": "system", "content": "Определи категорию. Ответь ТОЛЬКО одной: Еда, Напитки, Транспорт, Развлечения, Здоровье, Одежда, Бытовое, Связь, Другое."},
                 {"role": "user", "content": f"Расход: {expense_text}. Категория:"}
             ],
             "temperature": 0.1,
@@ -85,14 +86,14 @@ def get_category_from_ai(expense_text):
 def get_category_local(expense_text):
     text = expense_text.lower()
     categories = {
-        'Еда': ['шаурм', 'пицц', 'бургер', 'суш', 'ролл', 'рамен', 'борщ', 'суп', 'каш', 'мяс', 'колбас', 'сыр', 'хлеб', 'молок', 'яйц', 'фрукт', 'овощ', 'снек', 'печень', 'шоколад', 'конфет', 'пельмен', 'вареник', 'блин', 'ростикс', 'kfc', 'кфс', 'мак', 'макдональдс', 'вкусно', 'точка', 'вквс', 'бургер кинг', 'subway', 'сабвей', 'domino', 'домино', 'папа джонс', 'теремок', 'крошка', 'картошк', 'шашлык', 'шашлычн', 'пельменн', 'ресторан', 'кафе', 'столов', 'бистро', 'фудкорт', 'фуд-корт', 'обед', 'ужин', 'завтрак', 'ланч', 'перекус', 'поел', 'поесть', 'вок', 'wok', 'суши-бар', 'суши бар', 'итальян', 'грузин', 'узбек', 'хачапур', 'хинкал', 'плов', 'лаваш', 'фалафель', 'кебаб', 'шаурмичн', 'чебурек', 'чебуречн', 'пышк', 'пышечн', 'торт', 'пирожн', 'морожен', 'десерт'],
-        'Напитки': ['вод', 'чай', 'кофе', 'сок', 'газировк', 'энергетик', 'ред булл', 'monster', 'burn', 'алкоголь', 'пиво', 'вин', 'водк', 'starbucks', 'кофе хаус', 'шоколадниц', 'кофейн', 'кофейня', 'лимонад', 'квас', 'морс', 'компот', 'смузи', 'латте', 'капучин', 'американо', 'эспрессо', 'матча'],
-        'Транспорт': ['такси', 'автобус', 'метро', 'трамвай', 'бензин', 'топлив', 'парковк', 'самокат', 'каршеринг', 'яндекс такси', 'ситимобил', 'uber', 'убер', 'поезд', 'электричк', 'авиабилет', 'самолет', 'билет', 'проезд', 'троллейбус', 'маршрутк'],
-        'Развлечения': ['кино', 'игр', 'cs', 'steam', 'playstation', 'xbox', 'подписк', 'нетфликс', 'spotify', 'концерт', 'театр', 'выставк', 'музей', 'бар', 'клуб', 'караок', 'боулинг', 'бильярд', 'квест', 'парк', 'аттракцион', 'цирк', 'зоопарк', 'аквариум', 'дельфинарий'],
-        'Здоровье': ['аптек', 'лекарств', 'врач', 'больниц', 'спортзал', 'тренировк', 'фитнес', 'йога', 'бассейн', 'массаж', 'стоматолог', 'зуб', 'анализ', 'обследован', 'прививк', 'вакцин', 'витамины', 'бад'],
-        'Одежда': ['одежд', 'обувь', 'куртк', 'джинс', 'футболк', 'кроссовк', 'ботинк', 'сумк', 'рюкзак', 'аксессуар', 'часы', 'украшен', 'кольц', 'серьг'],
-        'Бытовое': ['бытов', 'уборк', 'стирк', 'шампун', 'мыл', 'туалет', 'зубн', 'порошок', 'средство', 'губк', 'тряпк', 'полотенц', 'постельн', 'ремонт', 'инструмент', 'лампочк', 'батарейк'],
-        'Связь': ['интернет', 'телефон', 'мобильн', 'сим', 'роуминг', 'мтс', 'билайн', 'мегафон', 'теле2', 'йота', 'оплат', 'пополн', 'минут', 'гб', 'трафик'],
+        'Еда': ['шаурм', 'пицц', 'бургер', 'суш', 'ролл', 'рамен', 'борщ', 'суп', 'каш', 'мяс', 'колбас', 'сыр', 'хлеб', 'молок', 'яйц', 'фрукт', 'овощ', 'снек', 'печень', 'шоколад', 'конфет', 'пельмен', 'вареник', 'блин', 'ростикс', 'kfc', 'кфс', 'мак', 'макдональдс', 'вкусно', 'точка', 'вквс', 'бургер кинг', 'subway', 'сабвей', 'domino', 'домино', 'папа джонс', 'теремок', 'крошка', 'картошк', 'шашлык', 'ресторан', 'кафе', 'столов', 'бистро', 'фудкорт', 'обед', 'ужин', 'завтрак', 'ланч', 'перекус', 'поел', 'вок', 'итальян', 'грузин', 'хачапур', 'хинкал', 'плов', 'лаваш', 'фалафель', 'кебаб', 'чебурек', 'пышк', 'торт', 'пирожн', 'морожен', 'десерт'],
+        'Напитки': ['вод', 'чай', 'кофе', 'сок', 'газировк', 'энергетик', 'ред булл', 'monster', 'burn', 'алкоголь', 'пиво', 'вин', 'водк', 'starbucks', 'кофе хаус', 'шоколадниц', 'кофейня', 'лимонад', 'квас', 'морс', 'смузи', 'латте', 'капучин', 'американо', 'эспрессо', 'матча'],
+        'Транспорт': ['такси', 'автобус', 'метро', 'трамвай', 'бензин', 'топлив', 'парковк', 'самокат', 'каршеринг', 'uber', 'убер', 'поезд', 'электричк', 'авиабилет', 'самолет', 'билет', 'проезд', 'троллейбус', 'маршрутк'],
+        'Развлечения': ['кино', 'игр', 'cs', 'steam', 'playstation', 'xbox', 'подписк', 'нетфликс', 'spotify', 'концерт', 'театр', 'выставк', 'музей', 'бар', 'клуб', 'караок', 'боулинг', 'бильярд', 'квест', 'парк', 'аттракцион'],
+        'Здоровье': ['аптек', 'лекарств', 'врач', 'больниц', 'спортзал', 'тренировк', 'фитнес', 'йога', 'бассейн', 'массаж', 'стоматолог', 'зуб', 'анализ', 'витамины'],
+        'Одежда': ['одежд', 'обувь', 'куртк', 'джинс', 'футболк', 'кроссовк', 'ботинк', 'сумк', 'рюкзак', 'часы', 'украшен'],
+        'Бытовое': ['бытов', 'уборк', 'стирк', 'шампун', 'мыл', 'туалет', 'зубн', 'порошок', 'ремонт', 'инструмент', 'лампочк'],
+        'Связь': ['интернет', 'телефон', 'мобильн', 'сим', 'роуминг', 'мтс', 'билайн', 'мегафон', 'теле2', 'йота'],
     }
     for category, keywords in categories.items():
         for keyword in keywords:
@@ -116,16 +117,20 @@ def get_partner_command(user_id):
         return "/она"
     return "/он"
 
+# === СТАТИСТИКА ЗА 7 ДНЕЙ ===
 def get_week_stats(user_data, user_name):
     today = datetime.now()
     week_ago = today - timedelta(days=7)
-    stats = f"💰 **Баланс:** {user_data['balance']}р\n"
+    
+    stats = f"👤 **{user_name} — последние 7 дней:**\n\n"
+    stats += f"💰 **Баланс:** {user_data['balance']}р\n"
     if user_data.get('my_debt'):
         stats += f"📉 **Долг:** {user_data['my_debt']}р\n"
-    if user_data.get('mom_debt'):
-        stats += f"📉 **Мамин долг:** {user_data['mom_debt']}р\n"
     stats += "\n"
+    
+    # Расходы по дням
     daily_expenses = {}
+    total_week_expenses = 0
     for expense in user_data.get('expense_history', []):
         date_str = expense.split(':')[0]
         try:
@@ -134,17 +139,23 @@ def get_week_stats(user_data, user_name):
                 if date_str not in daily_expenses:
                     daily_expenses[date_str] = []
                 daily_expenses[date_str].append(expense.split(': ', 1)[1])
+                amount = int(re.search(r'(\d+)р', expense).group(1))
+                total_week_expenses += amount
         except:
             pass
+    
     if daily_expenses:
-        stats += "📉 **Расходы за неделю:**\n"
+        stats += f"📉 **Расходы за неделю:** {total_week_expenses}р\n"
         for date in sorted(daily_expenses.keys(), reverse=True):
             stats += f"\n📅 {date}:\n"
             for exp in daily_expenses[date]:
                 stats += f"  • {exp}\n"
     else:
         stats += "📉 Расходов за неделю нет.\n"
+    
+    # Доходы по дням
     daily_incomes = {}
+    total_week_income = 0
     for income in user_data.get('income_history', []):
         date_str = income.split(':')[0]
         try:
@@ -153,18 +164,177 @@ def get_week_stats(user_data, user_name):
                 if date_str not in daily_incomes:
                     daily_incomes[date_str] = []
                 daily_incomes[date_str].append(income.split(': ', 1)[1])
+                amount = int(re.search(r'(\d+)р', income).group(1))
+                total_week_income += amount
         except:
             pass
+    
     if daily_incomes:
-        stats += "\n💰 **Доходы за неделю:**\n"
+        stats += f"\n💰 **Доходы за неделю:** {total_week_income}р\n"
         for date in sorted(daily_incomes.keys(), reverse=True):
             stats += f"\n📅 {date}:\n"
             for inc in daily_incomes[date]:
                 stats += f"  • {inc}\n"
     else:
         stats += "\n💰 Доходов за неделю нет.\n"
+    
     return stats
 
+# === СТАТИСТИКА ЗА МЕСЯЦ (календарный) ===
+def get_month_stats(user_data, user_name):
+    today = datetime.now()
+    current_month = today.month
+    current_year = today.year
+    
+    stats = f"👤 **{user_name} — {today.strftime('%B %Y')}**\n\n"
+    stats += f"💰 **Баланс:** {user_data['balance']}р\n"
+    if user_data.get('my_debt'):
+        stats += f"📉 **Долг:** {user_data['my_debt']}р\n"
+    stats += "\n"
+    
+    # Расходы по дням
+    daily_expenses = {}
+    total_month_expenses = 0
+    for expense in user_data.get('expense_history', []):
+        date_str = expense.split(':')[0]
+        try:
+            exp_date = datetime.strptime(date_str, '%d.%m')
+            if exp_date.month == current_month and exp_date.year == current_year:
+                if date_str not in daily_expenses:
+                    daily_expenses[date_str] = []
+                daily_expenses[date_str].append(expense.split(': ', 1)[1])
+                amount = int(re.search(r'(\d+)р', expense).group(1))
+                total_month_expenses += amount
+        except:
+            pass
+    
+    # Категории за месяц
+    category_totals = {}
+    for expense in user_data.get('expense_history', []):
+        date_str = expense.split(':')[0]
+        try:
+            exp_date = datetime.strptime(date_str, '%d.%m')
+            if exp_date.month == current_month and exp_date.year == current_year:
+                match = re.search(r'\[(.+)\]', expense)
+                if match:
+                    cat = match.group(1)
+                    amount = int(re.search(r'(\d+)р', expense).group(1))
+                    category_totals[cat] = category_totals.get(cat, 0) + amount
+        except:
+            pass
+    
+    if daily_expenses:
+        stats += f"📉 **Расходы за месяц:** {total_month_expenses}р\n"
+        for date in sorted(daily_expenses.keys(), reverse=True):
+            stats += f"\n📅 {date}:\n"
+            for exp in daily_expenses[date]:
+                stats += f"  • {exp}\n"
+    else:
+        stats += "📉 Расходов за месяц нет.\n"
+    
+    # Доходы по дням
+    daily_incomes = {}
+    total_month_income = 0
+    for income in user_data.get('income_history', []):
+        date_str = income.split(':')[0]
+        try:
+            inc_date = datetime.strptime(date_str, '%d.%m')
+            if inc_date.month == current_month and inc_date.year == current_year:
+                if date_str not in daily_incomes:
+                    daily_incomes[date_str] = []
+                daily_incomes[date_str].append(income.split(': ', 1)[1])
+                amount = int(re.search(r'(\d+)р', income).group(1))
+                total_month_income += amount
+        except:
+            pass
+    
+    if daily_incomes:
+        stats += f"\n💰 **Доходы за месяц:** {total_month_income}р\n"
+        for date in sorted(daily_incomes.keys(), reverse=True):
+            stats += f"\n📅 {date}:\n"
+            for inc in daily_incomes[date]:
+                stats += f"  • {inc}\n"
+    else:
+        stats += "\n💰 Доходов за месяц нет.\n"
+    
+    # Категории
+    if category_totals:
+        stats += f"\n📊 **По категориям:**\n"
+        sorted_cats = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+        for cat, amount in sorted_cats:
+            percentage = (amount / total_month_expenses) * 100 if total_month_expenses > 0 else 0
+            bar_length = int(percentage / 5)
+            bar = '█' * bar_length + '░' * (20 - bar_length)
+            stats += f"**{cat}:** {amount}р ({percentage:.1f}%)\n{bar}\n\n"
+    
+    return stats
+
+# === СТАТИСТИКА ЗА ГОД (календарный) ===
+def get_year_stats(user_data, user_name):
+    today = datetime.now()
+    current_year = today.year
+    
+    stats = f"👤 **{user_name} — {current_year} год**\n\n"
+    stats += f"💰 **Баланс:** {user_data['balance']}р\n"
+    if user_data.get('my_debt'):
+        stats += f"📉 **Долг:** {user_data['my_debt']}р\n"
+    stats += "\n"
+    
+    month_names = ['Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь', 
+                   'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь']
+    
+    # По месяцам
+    monthly_expenses = {}
+    monthly_incomes = {}
+    total_year_expenses = 0
+    total_year_income = 0
+    
+    for expense in user_data.get('expense_history', []):
+        date_str = expense.split(':')[0]
+        try:
+            exp_date = datetime.strptime(date_str, '%d.%m')
+            if exp_date.year == current_year:
+                month_key = exp_date.month
+                if month_key not in monthly_expenses:
+                    monthly_expenses[month_key] = 0
+                amount = int(re.search(r'(\d+)р', expense).group(1))
+                monthly_expenses[month_key] += amount
+                total_year_expenses += amount
+        except:
+            pass
+    
+    for income in user_data.get('income_history', []):
+        date_str = income.split(':')[0]
+        try:
+            inc_date = datetime.strptime(date_str, '%d.%m')
+            if inc_date.year == current_year:
+                month_key = inc_date.month
+                if month_key not in monthly_incomes:
+                    monthly_incomes[month_key] = 0
+                amount = int(re.search(r'(\d+)р', income).group(1))
+                monthly_incomes[month_key] += amount
+                total_year_income += amount
+        except:
+            pass
+    
+    stats += f"📉 **Расходы за год:** {total_year_expenses}р\n"
+    stats += f"💰 **Доходы за год:** {total_year_income}р\n"
+    stats += f"💵 **Разница:** {total_year_income - total_year_expenses}р\n\n"
+    
+    stats += "**По месяцам:**\n"
+    for month_num in range(1, 13):
+        exp = monthly_expenses.get(month_num, 0)
+        inc = monthly_incomes.get(month_num, 0)
+        if exp > 0 or inc > 0:
+            stats += f"\n📅 **{month_names[month_num-1]}:**\n"
+            if exp > 0:
+                stats += f"  📉 Расходы: {exp}р\n"
+            if inc > 0:
+                stats += f"  💰 Доходы: {inc}р\n"
+    
+    return stats
+
+# === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
     user_id = message.from_user.id
@@ -181,6 +351,8 @@ def handle_message(message):
     command = text[1:] if is_command else text
     if is_command and not command:
         command = 'help'
+
+    # 1. Помощь
     if command in ['помощь', 'help', 'команды', '']:
         help_text = f"""📋 **Хеопс — для {user_name}:**
 
@@ -189,20 +361,25 @@ def handle_message(message):
 • `зп самокат 3000` — доход
 • `погасил долг 1000` — погашение
 
-📊 **Просмотр (7 дней):**
-• `/ya` или `/я` — твой бюджет
-• `{partner_command}` или `/ona` — бюджет {partner_name} (только просмотр)
+📊 **Статистика:**
+• `/ya`, `/я` или `баланс` — за 7 дней
+• `/month` или `/месяц` — календарный месяц
+• `/year` или `/год` — календарный год
+• `{partner_command}` или `/ona` — бюджет {partner_name}
+• `/categories` — по категориям
 
 💙 **Эмоции:**
 • `/day` или `/день` — сообщение {partner_name} за вчера
 • `/write я скучаю` — отправить сейчас
-• `/status` или `/статус` — ответил ли {partner_name} сегодня
+• `/status` или `/статус` — статус
 
 📌 **Заметки:**
 • `/note ксюша любит рамен` — о {partner_name}
 • `/note я устал` — о себе"""
         bot.reply_to(message, help_text)
         return
+
+    # 2. Личные расходы
     expense_match_1 = re.match(r'^(\d+)\s+(.+)$', text)
     expense_match_2 = re.match(r'^(.+?)\s+(\d+)$', text)
     if (expense_match_1 or expense_match_2) and 'зп' not in text and 'погас' not in text:
@@ -219,6 +396,8 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"📉 Записал: {amount}р на {category_text}\n📂 Категория: {category}\n💰 Остаток: {user_data['balance']}р")
         return
+
+    # 3. Доходы
     income_match = re.search(r'(зп|яндекс|самокат|подработка)\s*.*?(\d+)', text)
     if income_match:
         source = income_match.group(1).capitalize()
@@ -229,6 +408,8 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"💰 Получил {amount}р от {source}. Баланс: {user_data['balance']}р. 🎯")
         return
+
+    # 4. Погашение долга
     if 'погас' in text:
         debt_match = re.search(r'(\d+)', text)
         if debt_match:
@@ -243,22 +424,36 @@ def handle_message(message):
                 save_data(data)
                 bot.reply_to(message, f"🔥 Твой долг теперь {user_data['my_debt']}р. 🚀")
             return
-    if command in ['я', 'мне', 'moi', 'ya', 'balance', 'баланс', 'статистика']:
+
+    # 5. Баланс / 7 дней (работает и как команда, и как слово)
+    if command in ['я', 'мне', 'moi', 'ya', 'balance', 'баланс', 'статистика', 'неделя', 'week']:
         user_data = data['users'][str(user_id)]
-        stats = f"👤 **{user_name} — последние 7 дней:**\n\n"
-        stats += get_week_stats(user_data, user_name)
-        bot.reply_to(message, stats)
+        bot.reply_to(message, get_week_stats(user_data, user_name))
         return
+
+    # 6. Месяц
+    if command in ['месяц', 'month']:
+        user_data = data['users'][str(user_id)]
+        bot.reply_to(message, get_month_stats(user_data, user_name))
+        return
+
+    # 7. Год
+    if command in ['год', 'year']:
+        user_data = data['users'][str(user_id)]
+        bot.reply_to(message, get_year_stats(user_data, user_name))
+        return
+
+    # 8. Партнёр (7 дней)
     if command in ['она', 'он', 'partner', 'ona']:
         partner_data = data['users'][str(partner_id)]
-        stats = f"💙 **{partner_name} — последние 7 дней:**\n\n"
-        stats += get_week_stats(partner_data, partner_name)
-        bot.reply_to(message, stats)
+        bot.reply_to(message, get_week_stats(partner_data, partner_name))
         return
+
+    # 9. Категории
     if command in ['категории', 'анализ', 'categories']:
         user_data = data['users'][str(user_id)]
         if not user_data.get('expense_history'):
-            bot.reply_to(message, "Пока нет расходов для анализа. 📝")
+            bot.reply_to(message, "Пока нет расходов. 📝")
             return
         category_totals = {}
         total_expenses = 0
@@ -279,15 +474,16 @@ def handle_message(message):
             report += f"**{category}:** {amount}р ({percentage:.1f}%)\n{bar}\n\n"
         bot.reply_to(message, report)
         return
+
+    # 10. Эмоции
     if command in ['день', 'day']:
         partner_emotion = data['emotions'].get(str(partner_id), {})
         if not partner_emotion.get('text'):
-            bot.reply_to(message, f"{partner_name} ещё не поделился эмоциями. Напомни написать `/day`! 💙")
+            bot.reply_to(message, f"{partner_name} ещё не поделился эмоциями. 💙")
             return
-        emotion_date = partner_emotion.get('date', 'Неизвестно')
-        emotion_text = partner_emotion['text']
-        bot.reply_to(message, f"💙 **{partner_name} ({emotion_date}):**\n\n{emotion_text}")
+        bot.reply_to(message, f"💙 **{partner_name} ({partner_emotion.get('date')}):**\n\n{partner_emotion['text']}")
         return
+
     if command.startswith('написать') or command.startswith('write'):
         message_text = re.sub(r'^(написать|write)\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if not message_text or message_text == original_text:
@@ -297,8 +493,9 @@ def handle_message(message):
             bot.send_message(partner_id, f"💌 **Сообщение от {user_name}:**\n\n{message_text}")
             bot.reply_to(message, f"✅ Отправлено {partner_name}!")
         except:
-            bot.reply_to(message, f"❌ Не удалось отправить. {partner_name} должен сначала написать боту /start")
+            bot.reply_to(message, f"❌ {partner_name} должен сначала написать боту /start")
         return
+
     if command in ['статус', 'status']:
         partner_emotion = data['emotions'].get(str(partner_id), {})
         today = datetime.now().strftime('%d.%m')
@@ -307,6 +504,8 @@ def handle_message(message):
         else:
             bot.reply_to(message, f"⏳ {partner_name} ещё не ответил сегодня.")
         return
+
+    # 11. Заметки
     if command.startswith('заметк') or command.startswith('note'):
         note_text = re.sub(r'^(заметк[ау]?|note)\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if 'ксюш' in note_text.lower() or note_text.lower().startswith('к '):
@@ -330,25 +529,30 @@ def handle_message(message):
             save_data(data)
             bot.reply_to(message, f"📌 Запомнил: {note_text}.")
             return
+
+    # 12. Показать заметки
     if command in ['ксюша', 'ksyusha']:
         notes = data['users'][str(KSYUSHA_ID)].get('notes', '')
         if not notes or notes.strip() == '':
             bot.reply_to(message, "📝 Пока нет заметок о Ксюше.")
             return
-        report = "💙 **Всё о Ксюше:**\n\n" + notes + "\n⚠️ ДР Ксюши — 1 февраля!"
-        bot.reply_to(message, report)
+        bot.reply_to(message, "💙 **Всё о Ксюше:**\n\n" + notes + "\n⚠️ ДР Ксюши — 1 февраля!")
         return
+
     if command in ['женя', 'zhenya']:
         notes = data['users'][str(ZHENYA_ID)].get('notes', '')
         if not notes or notes.strip() == '':
             bot.reply_to(message, "📝 Пока нет заметок о Жене.")
             return
-        report = "💪 **Всё о Жене:**\n\n" + notes
-        bot.reply_to(message, report)
+        bot.reply_to(message, "💪 **Всё о Жене:**\n\n" + notes)
         return
+
+    # 13. Старт
     if command in ['start', 'старт']:
         bot.reply_to(message, f"Привет, {user_name}! 👋\n\nНапиши `/help` чтобы увидеть все команды!")
         return
+
+    # 14. Ответ на ежедневный вопрос
     if data['emotions'].get(str(user_id), {}).get('waiting', False):
         data['emotions'][str(user_id)] = {
             "date": datetime.now().strftime('%d.%m'),
@@ -359,8 +563,11 @@ def handle_message(message):
         save_data(data)
         bot.reply_to(message, f"✅ Записал! Утром {partner_name} увидит твоё сообщение. 💙")
         return
-    bot.reply_to(message, f"Я помогаю {user_name} и {partner_name}. 😊\n\nНапиши `/` чтобы увидеть меню!")
 
+    # 15. Остальное
+    bot.reply_to(message, f"Напиши `/` чтобы увидеть меню!")
+
+# === ЕЖЕДНЕВНАЯ РАССЫЛКА ===
 def daily_scheduler():
     while True:
         now = datetime.now()
@@ -389,6 +596,7 @@ def daily_scheduler():
             time.sleep(60)
         time.sleep(30)
 
+# === WEBHOOK ===
 @app.route('/' + TG_TOKEN, methods=['POST'])
 def webhook():
     update = telebot.types.Update.de_json(request.stream.read().decode('utf-8'))
