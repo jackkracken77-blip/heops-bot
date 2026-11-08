@@ -6,14 +6,19 @@ import os
 import random
 from datetime import datetime
 from flask import Flask, request
-
 # === НАСТРОЙКИ ===
-TG_TOKEN = 'ТВОЙ_ТОКЕН_ОТ_BOTFATHER'
-HF_TOKEN = 'ТВОЙ_ТОКЕН_HUGGING_FACE'
+import os
+
+# Получаем токены из переменных окружения Render
+TG_TOKEN = os.environ.get('TG_TOKEN')
+HF_TOKEN = os.environ.get('HF_TOKEN')
+
+# Проверяем, что токены есть
+if not TG_TOKEN or not HF_TOKEN:
+    raise Exception("Токены не найдены! Проверь Environment Variables на Render.")
 
 DATA_FILE = 'data.json'
-WEBHOOK_URL = 'https://твой-адрес.onrender.com/' + TG_TOKEN
-
+WEBHOOK_URL = f'https://heops-bot.onrender.com/{TG_TOKEN}'
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
