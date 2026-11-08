@@ -112,11 +112,15 @@ def get_category(expense_text):
 # === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
 def handle_message(message):
-    text = message.text.lower().strip()
-    original_text = message.text.strip()
+    text = message.text.lower().strip() if message.text else ''
+    original_text = message.text.strip() if message.text else ''
+    
+    # Поддержка и обычных команд, и слэш-команд
+    is_command = text.startswith('/')
+    command = text[1:] if is_command else text
     
     # 1. Помощь
-    if text in ['помощь', 'help', 'команды']:
+    if command in ['помощь', 'help', 'команды']:
         help_text = """📋 **Хеопс — твой финансовый помощник:**
 
 💰 **Финансы:**
@@ -124,12 +128,14 @@ def handle_message(message):
 • `зп самокат 3000` — записать доход
 • `погасил свой 1000` — погасить свой долг
 • `погасил мамин 2000` — погасить мамин долг
-• `баланс` — общая статистика
-• `категории` — анализ расходов по категориям с %
+• `/баланс` — общая статистика
+• `/категории` — анализ расходов по категориям с %
 
 📌 **Ксюша:**
-• `заметка Ксюша любит рамен` — добавить заметку
-• `ксюша` — показать все заметки о Ксюше"""
+• `/заметка Ксюша любит рамен` — добавить заметку
+• `/ксюша` — показать все заметки о Ксюше
+
+💡 **Совет:** Используй слэш-команды (/) для быстрого доступа!"""
         bot.reply_to(message, help_text)
         return
 
@@ -175,7 +181,7 @@ def handle_message(message):
             return
 
     # 5. Анализ по категориям с процентами
-    if text in ['категории', 'анализ', 'статистика расходов']:
+    if command in ['категории', 'анализ', 'статистика расходов']:
         if not data['expense_history']:
             bot.reply_to(message, "Пока нет расходов для анализа. Запиши первую трату! 📝")
             return
@@ -210,7 +216,7 @@ def handle_message(message):
         return
 
     # 6. Заметки о Ксюше
-    if 'заметк' in text:
+    if command.startswith('заметк'):
         note = re.sub(r'^заметк[ау]?\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if not note or note == original_text:
             note = original_text
@@ -220,10 +226,10 @@ def handle_message(message):
         return
 
     # 7. Показать все заметки о Ксюше
-    if text == 'ксюша':
+    if command == 'ксюша':
         notes = data.get('notes', '')
         if not notes or notes.strip() == '':
-            bot.reply_to(message, "📝 Пока нет заметок о Ксюше.\n\nДобавь первую: `заметка Ксюша любит рамен`")
+            bot.reply_to(message, "📝 Пока нет заметок о Ксюше.\n\nДобавь первую: `/заметка Ксюша любит рамен`")
             return
         
         report = "💙 **Всё о Ксюше:**\n\n"
@@ -234,7 +240,7 @@ def handle_message(message):
         return
 
     # 8. Баланс и статистика
-    if text in ['баланс', 'статистика', 'итог', 'день', 'долги']:
+    if command in ['баланс', 'статистика', 'итог', 'день', 'долги']:
         stats = f"📊 **Твой баланс:** {data['balance']}р\n\n"
         stats += f"📉 **Долги:**\n"
         stats += f"  • Твой: {data['my_debt']}р\n"
@@ -248,7 +254,7 @@ def handle_message(message):
         return
 
     # 9. Всё остальное
-    bot.reply_to(message, "Я помогаю только с учётом финансов и напоминаниями о Ксюше. 😊\n\nНапиши `помощь` чтобы увидеть все команды!")
+    bot.reply_to(message, "Я помогаю только с учётом финансов и напоминаниями о Ксюше. 😊\n\nНапиши `/помощь` чтобы увидеть все команды!")
 
 # === WEBHOOK ===
 @app.route('/' + TG_TOKEN, methods=['POST'])
