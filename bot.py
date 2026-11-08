@@ -3,30 +3,29 @@ import requests
 import json
 import re
 import os
-import random
 from datetime import datetime
 from flask import Flask, request
+
 # === НАСТРОЙКИ ===
 import os
 
-# Получаем токены из переменных окружения Render
 TG_TOKEN = os.environ.get('TG_TOKEN')
 HF_TOKEN = os.environ.get('HF_TOKEN')
 GROQ_API_KEY = os.environ.get('GROQ_API_KEY')
 
-# Проверяем, что токены есть
-if not TG_TOKEN or not HF_TOKEN:
+if not TG_TOKEN or not GROQ_API_KEY:
     raise Exception("Токены не найдены! Проверь Environment Variables на Render.")
 
 DATA_FILE = 'data.json'
 WEBHOOK_URL = f'https://heops-bot.onrender.com/{TG_TOKEN}'
+
 def load_data():
     if os.path.exists(DATA_FILE):
         with open(DATA_FILE, 'r', encoding='utf-8') as f:
             return json.load(f)
     return {"my_debt": 90000, "mom_debt": 250000, "balance": 0, 
             "income_history": [], "expense_history": [], "debt_history": [], 
-            "diary": [], "notes": "Ксюша любит уют, не любит шумные места."}
+            "notes": "Ксюша любит уют, не любит шумные места."}
 
 def save_data(data):
     with open(DATA_FILE, 'w', encoding='utf-8') as f:
@@ -36,24 +35,9 @@ data = load_data()
 bot = telebot.TeleBot(TG_TOKEN)
 app = Flask(__name__)
 
-## === ФУНКЦИЯ ИИ (через Groq — быстро и стаб良но) ===
-def ask_ai(text):
-    # Локальные ответы на частые фразы (мгновенно, без ИИ)
-    local_responses = {
-        'привет': 'Привет! 👋 Как настроение? Рассказывай, что нового.',
-        'как дела': 'У меня всё стабильно — слежу за твоими целями. А у тебя как? 💪',
-        'я устал': 'Понимаю, ты много работаешь. Может, стоит отдохнуть часок? Ты не робот (в отличие от меня 😄). 🫂',
-        'скучно': 'Можешь записать что-нибудь в дневник или посмотреть баланс — увидишь, сколько уже сделал! 📊',
-        'спасибо': 'Всегда пожалуйста! Ты сам молодец, что идёшь к цели. 🙌',
-        'помоги': 'Я рядом. Расскажи, что случилось — разберёмся вместе. 🫂',
-    }
-    
-    text_lower = text.lower().strip()
-    for key, response in local_responses.items():
-        if key in text_lower:
-            return response
-    
-    # Если не нашли локальный ответ — идём в Groq
+# === ИИ: ОПРЕДЕЛЕНИЕ КАТЕГОРИИ ЧЕРЕЗ GROQ ===
+def get_category_from_ai(expense_text):
+    """ИИ определяет категорию расхода"""
     try:
         headers = {
             "Authorization": f"Bearer {GROQ_API_KEY}",
@@ -64,32 +48,66 @@ def ask_ai(text):
             "messages": [
                 {
                     "role": "system",
-                    "content": "Ты — добрый, спокойный помощник по имени Хеопс. Ты помогаешь студенту Жене, который работает и гасит долги (свой 90к и мамин 250к). У него есть девушка Ксюша (ДР 1 февраля). Он играет в CS. Общайся просто, по-дружески, без пафоса и клоунады. Поддержи его, будь на его стороне. Отвечай кратко (2-3 предложения)."
+                    "content": "Ты — классификатор расходов. Определи категорию для расхода. Ответь ТОЛЬКО одной категорией из списка: Еда, Напитки, Транспорт, Развлечения, Здоровье, Одежда, Бытовое, Связь, Другое. Не добавляй ничего больше."
                 },
                 {
                     "role": "user",
-                    "content": text
+                    "content": f"Расход: {expense_text}. Категория:"
                 }
             ],
-            "temperature": 0.7,
-            "max_tokens": 200
+            "temperature": 0.1,
+            "max_tokens": 10
         }
         
         response = requests.post(
             "https://api.groq.com/openai/v1/chat/completions",
             headers=headers,
             json=payload,
-            timeout=30
+            timeout=10
         )
         
         if response.status_code == 200:
             result = response.json()
-            return result['choices'][0]['message']['content'].strip()
+            category = result['choices'][0]['message']['content'].strip()
+            # Проверяем, что категория из списка
+            valid_categories = ['Еда', 'Напитки', 'Транспорт', 'Развлечения', 'Здоровье', 'Одежда', 'Бытовое', 'Связь', 'Другое']
+            if category in valid_categories:
+                return category
         
-        return "Хм, что-то пошло не так с ИИ. Попробуй ещё раз через минуту. 🫂"
+        return None  # ИИ не ответил
         
     except Exception as e:
-        return "ИИ сейчас недоступен, но я всё запомнил! Напиши 'баланс' чтобы увидеть статистику. 📊"
+        return None  # Ошибка
+
+# === ЛОКАЛЬНЫЕ ПРАВИЛА (FALLBACK) ===
+def get_category_local(expense_text):
+    """Локальное определение категории, если ИИ не ответил"""
+    text = expense_text.lower()
+    
+    categories = {
+        'Еда': ['шаурм', 'пицц', 'бургер', 'суш', 'ролл', 'рамен', 'борщ', 'суп', 'каш', 'мяс', 'колбас', 'сыр', 'хлеб', 'молок', 'яйц', 'фрукт', 'овощ', 'снек', 'печень', 'шоколад', 'конфет'],
+        'Напитки': ['вод', 'чай', 'кофе', 'сок', 'газировк', 'энергетик', 'ред булл', 'monster', 'burn', 'алкоголь', 'пиво', 'вин', 'водк'],
+        'Транспорт': ['такси', 'автобус', 'метро', 'трамвай', 'бензин', 'топлив', 'парковк', 'самокат', 'каршеринг'],
+        'Развлечения': ['кино', 'игр', 'cs', 'steam', 'playstation', 'xbox', 'подписк', 'нетфликс', 'spotify'],
+        'Здоровье': ['аптек', 'лекарств', 'врач', 'больниц', 'спортзал', 'тренировк'],
+        'Одежда': ['одежд', 'обувь', 'куртк', 'джинс', 'футболк'],
+        'Бытовое': ['бытов', 'уборк', 'стирк', 'шампун', 'мыл', 'туалет', 'зубн'],
+        'Связь': ['интернет', 'телефон', 'мобильн', 'сим', 'роуминг'],
+    }
+    
+    for category, keywords in categories.items():
+        for keyword in keywords:
+            if keyword in text:
+                return category
+    
+    return 'Другое'
+
+def get_category(expense_text):
+    """Сначала пробуем ИИ, если не получилось — локальные правила"""
+    ai_category = get_category_from_ai(expense_text)
+    if ai_category:
+        return ai_category
+    return get_category_local(expense_text)
 
 # === ОБРАБОТКА СООБЩЕНИЙ ===
 @bot.message_handler(func=lambda message: True)
@@ -99,35 +117,35 @@ def handle_message(message):
     
     # 1. Помощь
     if text in ['помощь', 'help', 'команды']:
-        help_text = """📋 **Команды Хеопса:**
+        help_text = """📋 **Хеопс — твой финансовый помощник:**
 
 💰 **Финансы:**
-• `300 шаурма` — записать трату
+• `300 шаурма` — записать трату (ИИ определит категорию)
 • `зп самокат 3000` — записать доход
 • `погасил свой 1000` — погасить свой долг
 • `погасил мамин 2000` — погасить мамин долг
-• `баланс` или `статистика` — посмотреть всё
+• `баланс` — общая статистика
+• `категории` — анализ расходов по категориям с %
 
-📝 **Дневник:**
-• `позанимался`, `съел шаурму`, `погулял` — запись в дневник
-
-📌 **Заметки:**
-• `заметка У Ксюши ДР 1 февраля` — сохранить заметку
-
-💬 **Общение:**
-Просто пиши что думаешь — я выслушаю! 🫂"""
+📌 **Ксюша:**
+• `заметка Ксюша любит рамен` — добавить заметку
+• `ксюша` — показать все заметки о Ксюше"""
         bot.reply_to(message, help_text)
         return
 
-    # 2. Расход
+    # 2. Расход с ИИ-категоризацией
     expense_match = re.match(r'^(\d+)\s+(.+)$', text)
     if expense_match and 'зп' not in text and 'погас' not in text:
         amount = int(expense_match.group(1))
-        category = expense_match.group(2)
+        category_text = expense_match.group(2)
+        
+        # ИИ определяет категорию
+        category = get_category(category_text)
+        
         data['balance'] -= amount
-        data['expense_history'].append(f"{datetime.now().strftime('%d.%m')}: {amount}р - {category}")
+        data['expense_history'].append(f"{datetime.now().strftime('%d.%m')}: {amount}р - {category_text} [{category}]")
         save_data(data)
-        bot.reply_to(message, f"📉 Записал: {amount}р на {category}. Остаток: {data['balance']}р. Держись, всё идёт по плану! 💪")
+        bot.reply_to(message, f"📉 Записал: {amount}р на {category_text}\n📂 Категория: {category} (определено ИИ)\n💰 Остаток: {data['balance']}р")
         return
 
     # 3. Доход
@@ -156,30 +174,66 @@ def handle_message(message):
                 bot.reply_to(message, f"🔥 Супер! Твой долг теперь {data['my_debt']}р. Так держать! 🚀")
             return
 
-    # 5. Дневник
-    diary_keywords = ['позанимался', 'тренировк', 'съел', 'скушал', 'поел', 'выпил', 'поеш', 'поспал', 'погулял', 'поработал']
-    if any(word in text for word in diary_keywords):
-        data['diary'].append(f"{datetime.now().strftime('%d.%m %H:%M')}: {original_text}")
-        save_data(data)
-        responses = [
-            f"✅ Записал: {original_text}. Ты молодец, что отслеживаешь! 🫂",
-            f"📝 Принято: {original_text}. Главное — движение вперёд, ты справишься! 💪",
-            f"🌟 Записал. Ты большой молодец, что заботишься о себе! 🙌"
-        ]
-        bot.reply_to(message, random.choice(responses))
+    # 5. Анализ по категориям с процентами
+    if text in ['категории', 'анализ', 'статистика расходов']:
+        if not data['expense_history']:
+            bot.reply_to(message, "Пока нет расходов для анализа. Запиши первую трату! 📝")
+            return
+        
+        category_totals = {}
+        total_expenses = 0
+        
+        for expense in data['expense_history']:
+            match = re.search(r': (\d+)р - .+ \[(.+)\]', expense)
+            if match:
+                amount = int(match.group(1))
+                category = match.group(2)
+                category_totals[category] = category_totals.get(category, 0) + amount
+                total_expenses += amount
+        
+        if total_expenses == 0:
+            bot.reply_to(message, "Не удалось проанализировать расходы.")
+            return
+        
+        report = "📊 **Анализ расходов по категориям:**\n\n"
+        report += f"💸 **Всего потрачено:** {total_expenses}р\n\n"
+        
+        sorted_categories = sorted(category_totals.items(), key=lambda x: x[1], reverse=True)
+        
+        for category, amount in sorted_categories:
+            percentage = (amount / total_expenses) * 100
+            bar_length = int(percentage / 5)
+            bar = '█' * bar_length + '░' * (20 - bar_length)
+            report += f"**{category}:** {amount}р ({percentage:.1f}%)\n{bar}\n\n"
+        
+        bot.reply_to(message, report)
         return
 
-    # 6. Заметки
+    # 6. Заметки о Ксюше
     if 'заметк' in text:
         note = re.sub(r'^заметк[ау]?\s*[:\-]?\s*', '', original_text, flags=re.IGNORECASE)
         if not note or note == original_text:
             note = original_text
-        data['notes'] += f" {note}"
+        data['notes'] += f"{datetime.now().strftime('%d.%m')}: {note}\n"
         save_data(data)
-        bot.reply_to(message, f"📌 Запомнил: {note}")
+        bot.reply_to(message, f"📌 Запомнил: {note}. Ксюша оценит твою внимательность! 💙")
         return
 
-    # 7. Баланс
+    # 7. Показать все заметки о Ксюше
+    if text == 'ксюша':
+        notes = data.get('notes', '')
+        if not notes or notes.strip() == '':
+            bot.reply_to(message, "📝 Пока нет заметок о Ксюше.\n\nДобавь первую: `заметка Ксюша любит рамен`")
+            return
+        
+        report = "💙 **Всё о Ксюше:**\n\n"
+        report += notes
+        report += "\n⚠️ Не забывай: ДР Ксюши — 1 февраля!"
+        
+        bot.reply_to(message, report)
+        return
+
+    # 8. Баланс и статистика
     if text in ['баланс', 'статистика', 'итог', 'день', 'долги']:
         stats = f"📊 **Твой баланс:** {data['balance']}р\n\n"
         stats += f"📉 **Долги:**\n"
@@ -190,14 +244,11 @@ def handle_message(message):
             stats += "🛒 **Последние траты:**\n" + "\n".join(data['expense_history'][-5:]) + "\n\n"
         if data['income_history'][-5:]:
             stats += "💰 **Последние доходы:**\n" + "\n".join(data['income_history'][-5:]) + "\n\n"
-        if data['diary'][-5:]:
-            stats += "📝 **Дневник:**\n" + "\n".join(data['diary'][-5:])
         bot.reply_to(message, stats)
         return
 
-    # 8. ИИ
-    ai_response = ask_ai(original_text)
-    bot.reply_to(message, ai_response)
+    # 9. Всё остальное
+    bot.reply_to(message, "Я помогаю только с учётом финансов и напоминаниями о Ксюше. 😊\n\nНапиши `помощь` чтобы увидеть все команды!")
 
 # === WEBHOOK ===
 @app.route('/' + TG_TOKEN, methods=['POST'])
